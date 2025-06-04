@@ -9,41 +9,54 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Set to your frontend domain in production
+    origin: "*", // In production, restrict this
   },
 });
 
 io.on("connection", (socket) => {
-  //console.log("✅ Socket connected:", socket.id);
-
   socket.on("join-room", (chatboxId) => {
     socket.join(chatboxId);
-    //console.log(`🟢 Joined room: ${chatboxId}`);
   });
 
   socket.on("send-message", async (data) => {
     const { senderEmail, chatboxId, text } = data;
 
-    const { db } = await connectToDatabase();
+    try {
+      const { db } = await connectToDatabase();
 
-    const message = {
-      _id: new ObjectId(),
-      senderEmail,
-      text,
-      timestamp: new Date(),
-    };
+      // Create a unique message document
+      const message = {
+        _id: new ObjectId(),
+        senderEmail,
+        text,
+        timestamp: new Date(),
+      };
 
-    await db.collection("chatboxes").updateOne(
-      { _id: new ObjectId(chatboxId) },
-      {$push: { messages: message },
-      $set: { lastModified: new Date() }
+      // 1. Store the full message in the frnd_msg collection
+      await db.collection("frnd_msg").insertOne(message);
+
+      // 2. Store only the message _id in the chatboxes.messages array
+      await db.collection("chatboxes").updateOne(
+        { _id: new ObjectId(chatboxId) },
+        {
+          $push: { messages: message._id },
+          $set: { lastModified: new Date() },
+        }
+      );
+
+      // 3. Emit the message (without _id, optionally include if needed)
+      io.to(chatboxId).emit("receive-message", {
+        chatboxId,
+        senderEmail,
+        text,
+        timestamp: message.timestamp.toISOString(),
+        _id: message._id.toString(), // Optional, if you want to send this
       });
-    io.to(chatboxId).emit("receive-message", {
-      chatboxId,
-      senderEmail,
-      text,
-      timestamp: new Date().toISOString(),
-      }); // 🔄 broadcast to all in room
+
+    } catch (error) {
+      console.error("❌ Error in send-message:", error);
+      socket.emit("error-message", { error: "Failed to send message" });
+    }
   });
 
   socket.on("disconnect", () => {
