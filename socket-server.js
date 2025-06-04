@@ -27,6 +27,7 @@ io.on("connection", (socket) => {
     const { db } = await connectToDatabase();
 
     const message = {
+      _id: new ObjectId(),
       senderEmail,
       text,
       timestamp: new Date(),
