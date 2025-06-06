@@ -60,7 +60,7 @@ io.on("connection", (socket) => {
     }
   });
 
-   socket.on("edit-message", async ({ messageId, newText, roomId }) => {
+  socket.on("edit-message", async ({ messageId, newText, roomId }) => {
     try {
       const { db } = await connectToDatabase();
 
@@ -112,12 +112,16 @@ io.on("connection", (socket) => {
       });
 
       // Get AI response
-      const aiRes = await axios.post("https://askdemia1.onrender.com/chat", {
-        user_id: senderName,
-        message: text,
-      });
-
-      const aiText = aiRes?.data?.response || "Unexpected response.";
+      let aiText = "Sorry, I'm having trouble responding right now.";
+      try {
+        const aiRes = await axios.post("https://askdemia1.onrender.com/chat", {
+          user_id: senderName,
+          message: text,
+        });
+        aiText = aiRes?.data?.response ?? aiText;
+      } catch (err) {
+        console.error("AI service error:", err.message);
+      }
 
       // Save AI response
       const aiMsgRes = await db.collection("messages").insertOne({
