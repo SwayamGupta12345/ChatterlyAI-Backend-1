@@ -106,10 +106,10 @@ io.on("connection", (socket) => {
   });
 
   // When a new chat is created
-  socket.on("chat-created", ({ chatbox, users }) => {
-    users.forEach((userEmail) => {
-      io.to(userEmail).emit("chat-created", { chatbox });
-    });
+  socket.on("chat-created", ({ creatorEmail, friendEmail, creatorChatbox, friendChatbox }) => {
+    // Send personalized chatbox to each user
+    io.to(creatorEmail).emit("chat-created", { chatbox: creatorChatbox });
+    io.to(friendEmail).emit("chat-created", { chatbox: friendChatbox });
   });
 
   // When a chat is deleted
