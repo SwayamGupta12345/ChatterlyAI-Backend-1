@@ -8,6 +8,7 @@ import axios from "axios";
 
 const app = express();
 const server = http.createServer(app);
+const onlineUsers = new Set();
 const io = new Server(server, {
   cors: {
     origin: "*", // In production, restrict this
@@ -15,9 +16,23 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  socket.on("join-room", (roomId) => {
+  socket.on("join-chat-room", (roomId) => {
     socket.join(roomId);
-    // console.log(`✅ User ${socket.id} joined room: ${roomId}`);
+  });
+
+  socket.on("online-room", (email) => {
+  socket.email = email;
+  onlineUsers.add(email);
+
+  // Notify all users somebody is online
+  io.emit("user-online-status", {
+    email,
+    isOnline: true,
+  });
+});
+
+  socket.on("request-online-users", () => {
+    socket.emit("online-users-list", Array.from(onlineUsers));
   });
 
   socket.on("send-message", async (data) => {
@@ -56,7 +71,7 @@ io.on("connection", (socket) => {
       });
 
     } catch (error) {
-      console.error("❌ Error in send-message:", error);
+      // console.error("❌ Error in send-message:", error);
       socket.emit("error-message", { error: "Failed to send message" });
     }
   });
@@ -75,7 +90,7 @@ io.on("connection", (socket) => {
         newText,
       });
     } catch (error) {
-      console.error("❌ Error in edit-message:", error);
+      // console.error("❌ Error in edit-message:", error);
       socket.emit("error-message", { error: "Failed to edit message" });
     }
   });
@@ -96,7 +111,7 @@ io.on("connection", (socket) => {
         messageId,
       });
     } catch (error) {
-      console.error("❌ Error in delete-message:", error);
+      // console.error("❌ Error in delete-message:", error);
       socket.emit("error-message", { error: "Failed to delete message" });
     }
   });
@@ -147,7 +162,7 @@ io.on("connection", (socket) => {
         });
         aiText = aiRes?.data?.response ?? aiText;
       } catch (err) {
-        console.error("AI service error:", err.message);
+        // console.error("AI service error:", err.message);
       }
 
       // Save AI response
@@ -177,14 +192,22 @@ io.on("connection", (socket) => {
         }
       );
     } catch (err) {
-      console.error("Socket error:", err);
+      // console.error("Socket error:", err);
       socket.emit("error-message", "Something went wrong on the server.");
     }
   });
   
   socket.on("disconnect", () => {
-    //console.log("❌ Socket disconnected:", socket.id);
-  });
+  if (socket.email) {
+    onlineUsers.delete(socket.email);
+
+    io.emit("user-online-status", {
+      email: socket.email,
+      isOnline: false,
+    });
+  }
+});
+
 });
 
 const PORT = process.env.PORT || 3002;
