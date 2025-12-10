@@ -19,7 +19,7 @@ No database, no extra folders — just the helper socket server.
 - npm (or yarn)
 
 ## Quickstart — local
-```git clone https://github.com/SwayamGupta12345/ChatterlyAI-Backend-2.git
+```git clone https://github.com/SwayamGupta12345/ChatterlyAI-Backend.git
 cd ChatterlyAI-Backend
 npm install
 node socket-server.js
